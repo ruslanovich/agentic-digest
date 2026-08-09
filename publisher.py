@@ -4,10 +4,12 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 
 QUEUE_PATH = Path("data/queue.jsonl")
+STATE_PATH = Path("state/published.jsonl")
 
 
 def require_env(name: str) -> str:
@@ -81,12 +83,25 @@ def send_message(text: str) -> int:
     return result["result"]["message_id"]
 
 
+def mark_published(item: dict, message_id: int):
+    STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    record = {
+        "id": item["id"],
+        "telegram_message_id": message_id,
+        "published_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    with STATE_PATH.open("a", encoding="utf-8") as file:
+        file.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
 def main():
     item = load_next_item()
     if not item:
         return
 
     message_id = send_message(format_post(item))
+    mark_published(item, message_id)
     print(f"Published {item['id']} as Telegram message {message_id}")
 
 
