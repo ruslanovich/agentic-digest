@@ -4,6 +4,10 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
+
+
+QUEUE_PATH = Path("data/queue.jsonl")
 
 
 def require_env(name: str) -> str:
@@ -14,14 +18,43 @@ def require_env(name: str) -> str:
     return value
 
 
-def main() -> None:
+def load_next_item():
+    if not QUEUE_PATH.exists():
+        print(f"Queue file not found: {QUEUE_PATH}", file=sys.stderr)
+        sys.exit(1)
+
+    with QUEUE_PATH.open("r", encoding="utf-8") as file:
+        for line in file:
+            if not line.strip():
+                continue
+            item = json.loads(line)
+            if item.get("status") == "ready":
+                return item
+
+    print("No ready items found")
+    return None
+
+
+def format_post(item: dict) -> str:
+    insights = "\n".join(f"• {x}" for x in item.get("insights", []))
+    scores = item.get("scores", {})
+
+    return (
+        f"🧠 {item['title']}\n\n"
+        f"Источник: {item.get('source', 'Unknown')}\n\n"
+        f"{item.get('summary', '')}\n\n"
+        f"💡 Инсайты:\n{insights}\n\n"
+        f"📊 Score:\n"
+        f"Novelty {scores.get('novelty', '-')}/5\n"
+        f"Depth {scores.get('depth', '-')}/5\n"
+        f"Usefulness {scores.get('usefulness', '-')}/5\n\n"
+        f"🔗 {item.get('url', '')}"
+    )
+
+
+def send_message(text: str) -> int:
     bot_token = require_env("TELEGRAM_BOT_TOKEN")
     chat_id = require_env("TELEGRAM_CHAT_ID")
-
-    text = (
-        "🧪 Agentic Digest test\n\n"
-        "GitHub Actions → Telegram publishing works."
-    )
 
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     payload = urllib.parse.urlencode(
@@ -36,22 +69,25 @@ def main() -> None:
 
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
-            body = response.read().decode("utf-8")
-    except urllib.error.HTTPError as exc:
-        error_body = exc.read().decode("utf-8", errors="replace")
-        print(f"Telegram API HTTP {exc.code}: {error_body}", file=sys.stderr)
-        sys.exit(1)
+            result = json.loads(response.read().decode("utf-8"))
     except urllib.error.URLError as exc:
         print(f"Telegram API request failed: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    result = json.loads(body)
     if not result.get("ok"):
         print(f"Telegram API returned an error: {result}", file=sys.stderr)
         sys.exit(1)
 
-    message_id = result["result"]["message_id"]
-    print(f"Published test message successfully. message_id={message_id}")
+    return result["result"]["message_id"]
+
+
+def main():
+    item = load_next_item()
+    if not item:
+        return
+
+    message_id = send_message(format_post(item))
+    print(f"Published {item['id']} as Telegram message {message_id}")
 
 
 if __name__ == "__main__":
