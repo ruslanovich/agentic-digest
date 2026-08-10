@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Agentic Digest Article",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "url",
+    "summary",
+    "insights",
+    "scores"
+  ],
+  "properties": {
+    "id": {"type": "string"},
+    "title": {"type": "string"},
+    "url": {"type": "string"},
+    "source": {"type": "string"},
+    "author": {"type": "string"},
+    "topics": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "tier": {"type": "string"},
+    "summary": {"type": "string"},
+    "insights": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {"type": "string"},
+          "explanation": {"type": "string"},
+          "practical_implication": {"type": "string"}
+        }
+      }
+    },
+    "scores": {
+      "type": "object",
+      "properties": {
+        "novelty": {"type": "number"},
+        "technical_depth": {"type": "number"},
+        "practical_value": {"type": "number"}
+      }
+    }
+  }
+}
