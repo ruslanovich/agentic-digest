@@ -43,7 +43,8 @@ def load_next_item():
             if not line.strip():
                 continue
             item = json.loads(line)
-            if item.get("telegram_status") == "ready" and item.get("id") not in published_ids:
+            status = item.get("telegram_status", item.get("status"))
+            if status == "ready" and item.get("id") not in published_ids:
                 return item
 
     print("No unpublished ready items found")
