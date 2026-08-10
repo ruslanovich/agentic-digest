@@ -8,9 +8,15 @@ on:
       - "queue/ready.jsonl"
 
   schedule:
-    # 11:07-23:07 MSK, every 2 hours (UTC schedule).
-    # Avoid the top of the hour because GitHub scheduled workflows can be delayed or dropped under high load.
-    - cron: "7 8-20/2 * * *"
+    # 11:07, 13:07, 15:07, 17:07, 19:07, 21:07, 23:07 MSK (UTC+3).
+    # Explicit entries avoid ambiguity and keep runs away from the top of the hour.
+    - cron: "7 8 * * *"
+    - cron: "7 10 * * *"
+    - cron: "7 12 * * *"
+    - cron: "7 14 * * *"
+    - cron: "7 16 * * *"
+    - cron: "7 18 * * *"
+    - cron: "7 20 * * *"
 
 permissions:
   contents: write
