@@ -21,6 +21,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Validate incoming materials
+        run: python validate.py
+
       - name: Run promotion pipeline
         run: python promote.py
 
