@@ -3,12 +3,20 @@ name: Publish Agentic Digest
 on:
   workflow_dispatch:
 
+  push:
+    paths:
+      - "queue/ready.jsonl"
+
   schedule:
-    # 10:00-22:00 MSK approximately, every 2 hours (UTC schedule)
+    # 10:00-22:00 MSK, every 2 hours (UTC schedule)
     - cron: "0 7-19/2 * * *"
 
 permissions:
   contents: write
+
+concurrency:
+  group: agentic-digest-publisher
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -37,7 +45,5 @@ jobs:
           git config user.email "agentic-digest-bot@users.noreply.github.com"
 
           git add state/published.jsonl
-
           git commit -m "Update publication state" || exit 0
-
           git push
