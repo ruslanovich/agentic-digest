@@ -84,9 +84,12 @@ def format_post(item: dict) -> str:
 
     insights = "\n\n".join(insight_blocks)
     scores = item.get("scores", {})
+    title = html.escape(str(item["title"]))
+    url = html.escape(str(item.get("url", "")).strip(), quote=True)
+    title_section = f'<a href="{url}"><b>{title}</b></a>' if url else f"<b>{title}</b>"
 
     sections = [
-        f"<b>{html.escape(str(item['title']))}</b>",
+        title_section,
         html.escape(str(item.get("summary", "")).strip()),
         f"<b>Инсайты</b>\n{insights}" if insights else "",
         (
@@ -95,8 +98,8 @@ def format_post(item: dict) -> str:
             f"Technical depth {scores.get('technical_depth', '-')}/5\n"
             f"Practical value {scores.get('practical_value', '-')}/5"
         ),
-        html.escape(str(item.get("url", "")).strip()),
         topics,
+        "@agenticdigest",
     ]
 
     return "\n\n".join(section for section in sections if section)
