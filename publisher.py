@@ -1,14 +1,13 @@
 import json
 import os
 import sys
-import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
 
-QUEUE_PATH = Path("data/queue.jsonl")
+QUEUE_PATH = Path("queue/ready.jsonl")
 PUBLISHED_PATH = Path("state/published.jsonl")
 
 
@@ -24,23 +23,18 @@ def load_published_ids() -> set[str]:
     if not PUBLISHED_PATH.exists():
         return set()
 
-    published_ids = set()
-
+    result = set()
     with PUBLISHED_PATH.open("r", encoding="utf-8") as file:
         for line in file:
-            if not line.strip():
-                continue
-
-            item = json.loads(line)
-            published_ids.add(item["id"])
-
-    return published_ids
+            if line.strip():
+                result.add(json.loads(line)["id"])
+    return result
 
 
 def load_next_item():
     if not QUEUE_PATH.exists():
-        print(f"Queue file not found: {QUEUE_PATH}", file=sys.stderr)
-        sys.exit(1)
+        print(f"Queue file not found: {QUEUE_PATH}")
+        return None
 
     published_ids = load_published_ids()
 
@@ -48,13 +42,8 @@ def load_next_item():
         for line in file:
             if not line.strip():
                 continue
-
             item = json.loads(line)
-
-            if (
-                item.get("status") == "ready"
-                and item.get("id") not in published_ids
-            ):
+            if item.get("telegram_status") == "ready" and item.get("id") not in published_ids:
                 return item
 
     print("No unpublished ready items found")
@@ -62,89 +51,66 @@ def load_next_item():
 
 
 def format_post(item: dict) -> str:
+    topics = " ".join(f"#{x}" for x in item.get("topics", []))
     insights = "\n".join(
-        f"• {insight}" for insight in item.get("insights", [])
+        f"• {x.get('title', '')}: {x.get('explanation', '')}"
+        for x in item.get("insights", [])
     )
-
     scores = item.get("scores", {})
 
     return (
         f"🧠 {item['title']}\n\n"
-        f"Источник: {item.get('source', 'Unknown')}\n\n"
+        f"Источник: {item.get('source', 'Unknown')}\n"
+        f"{topics}\n\n"
         f"{item.get('summary', '')}\n\n"
         f"💡 Инсайты:\n{insights}\n\n"
         f"📊 Score:\n"
         f"Novelty {scores.get('novelty', '-')}/5\n"
-        f"Depth {scores.get('depth', '-')}/5\n"
-        f"Usefulness {scores.get('usefulness', '-')}/5\n\n"
+        f"Technical depth {scores.get('technical_depth', '-')}/5\n"
+        f"Practical value {scores.get('practical_value', '-')}/5\n\n"
         f"🔗 {item.get('url', '')}"
     )
 
 
 def send_message(text: str) -> int:
-    bot_token = require_env("TELEGRAM_BOT_TOKEN")
+    token = require_env("TELEGRAM_BOT_TOKEN")
     chat_id = require_env("TELEGRAM_CHAT_ID")
 
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = urllib.parse.urlencode({
+        "chat_id": chat_id,
+        "text": text,
+        "disable_web_page_preview": "true",
+    }).encode("utf-8")
 
-    payload = urllib.parse.urlencode(
-        {
-            "chat_id": chat_id,
-            "text": text,
-            "disable_web_page_preview": "true",
-        }
-    ).encode("utf-8")
-
-    request = urllib.request.Request(
-        url,
-        data=payload,
-        method="POST",
-    )
-
-    try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            result = json.loads(response.read().decode("utf-8"))
-
-    except urllib.error.URLError as exc:
-        print(f"Telegram API request failed: {exc}", file=sys.stderr)
-        sys.exit(1)
+    request = urllib.request.Request(url, data=payload, method="POST")
+    with urllib.request.urlopen(request, timeout=30) as response:
+        result = json.loads(response.read().decode("utf-8"))
 
     if not result.get("ok"):
-        print(f"Telegram API returned an error: {result}", file=sys.stderr)
-        sys.exit(1)
+        raise RuntimeError(result)
 
     return result["result"]["message_id"]
 
 
 def save_publication(item_id: str, message_id: int):
     PUBLISHED_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-    record = {
-        "id": item_id,
-        "telegram_message_id": message_id,
-        "published_at": datetime.now(timezone.utc).isoformat(),
-    }
-
     with PUBLISHED_PATH.open("a", encoding="utf-8") as file:
-        file.write(json.dumps(record, ensure_ascii=False) + "\n")
+        file.write(json.dumps({
+            "id": item_id,
+            "telegram_message_id": message_id,
+            "published_at": datetime.now(timezone.utc).isoformat(),
+        }, ensure_ascii=False) + "\n")
 
 
 def main():
     item = load_next_item()
-
     if not item:
         return
 
     message_id = send_message(format_post(item))
-
-    save_publication(
-        item_id=item["id"],
-        message_id=message_id,
-    )
-
-    print(
-        f"Published {item['id']} as Telegram message {message_id}"
-    )
+    save_publication(item["id"], message_id)
+    print(f"Published {item['id']} as Telegram message {message_id}")
 
 
 if __name__ == "__main__":
