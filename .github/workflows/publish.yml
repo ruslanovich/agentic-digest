@@ -1,7 +1,12 @@
-name: Publish test message
+name: Publish Agentic Digest
 
 on:
   workflow_dispatch:
+
+  schedule:
+    - cron: "15 8 * * *"
+    - cron: "15 13 * * *"
+    - cron: "15 18 * * *"
 
 permissions:
   contents: write
