@@ -4,14 +4,8 @@ on:
   workflow_dispatch:
 
   schedule:
-    # 11:25, 13:25, 15:25, 17:25, 19:25, 21:25, 23:25 MSK (UTC+3).
-    - cron: "25 8 * * *"
-    - cron: "25 10 * * *"
-    - cron: "25 12 * * *"
-    - cron: "25 14 * * *"
-    - cron: "25 16 * * *"
-    - cron: "25 18 * * *"
-    - cron: "25 20 * * *"
+    - cron: "25 11,13,15,17,19,21,23 * * *"
+      timezone: "Europe/Moscow"
 
 permissions:
   contents: write
