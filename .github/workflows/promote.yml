@@ -1,0 +1,36 @@
+name: Promote Agentic Digest Materials
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run promotion pipeline
+        run: python promote.py
+
+      - name: Commit promoted materials
+        run: |
+          git config user.name "agentic-digest-bot"
+          git config user.email "agentic-digest-bot@users.noreply.github.com"
+
+          git add data/articles.jsonl queue/ready.jsonl
+
+          git commit -m "Promote digest materials" || exit 0
+
+          git push
