@@ -2,6 +2,9 @@ name: Promote Agentic Digest Materials
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - "incoming/raw.jsonl"
 
 permissions:
   contents: write
@@ -27,13 +30,17 @@ jobs:
       - name: Run promotion pipeline
         run: python promote.py
 
-      - name: Commit promoted materials
+      - name: Publish one queued material to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python publisher.py
+
+      - name: Commit pipeline state
         run: |
           git config user.name "agentic-digest-bot"
           git config user.email "agentic-digest-bot@users.noreply.github.com"
 
-          git add data/articles.jsonl queue/ready.jsonl
-
-          git commit -m "Promote digest materials" || exit 0
-
+          git add data/articles.jsonl queue/ready.jsonl state/published.jsonl
+          git commit -m "Process digest materials" || exit 0
           git push
