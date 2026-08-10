@@ -1,5 +1,7 @@
+import html
 import json
 import os
+import re
 import sys
 import urllib.parse
 import urllib.request
@@ -51,26 +53,53 @@ def load_next_item():
     return None
 
 
+def normalize_topic(topic: str) -> str:
+    normalized = re.sub(r"[^0-9A-Za-zА-Яа-я_]+", "_", topic.strip())
+    normalized = re.sub(r"_+", "_", normalized).strip("_")
+    return normalized
+
+
 def format_post(item: dict) -> str:
-    topics = " ".join(f"#{x}" for x in item.get("topics", []))
-    insights = "\n".join(
-        f"• {x.get('title', '')}: {x.get('explanation', '')}"
-        for x in item.get("insights", [])
+    topics = " ".join(
+        f"#{html.escape(normalized)}"
+        for topic in item.get("topics", [])
+        if (normalized := normalize_topic(str(topic)))
     )
+
+    insight_blocks = []
+    for insight in item.get("insights", []):
+        title = html.escape(str(insight.get("title", "")).strip())
+        explanation = html.escape(str(insight.get("explanation", "")).strip())
+        practical = html.escape(str(insight.get("practical_implication", "")).strip())
+
+        parts = []
+        if title:
+            parts.append(f"<b>{title}</b>")
+        if explanation:
+            parts.append(explanation)
+        if practical:
+            parts.append(f"Практический вывод: {practical}")
+        if parts:
+            insight_blocks.append("\n".join(parts))
+
+    insights = "\n\n".join(insight_blocks)
     scores = item.get("scores", {})
 
-    return (
-        f"🧠 {item['title']}\n\n"
-        f"Источник: {item.get('source', 'Unknown')}\n"
-        f"{topics}\n\n"
-        f"{item.get('summary', '')}\n\n"
-        f"💡 Инсайты:\n{insights}\n\n"
-        f"📊 Score:\n"
-        f"Novelty {scores.get('novelty', '-')}/5\n"
-        f"Technical depth {scores.get('technical_depth', '-')}/5\n"
-        f"Practical value {scores.get('practical_value', '-')}/5\n\n"
-        f"🔗 {item.get('url', '')}"
-    )
+    sections = [
+        f"<b>{html.escape(str(item['title']))}</b>",
+        html.escape(str(item.get("summary", "")).strip()),
+        f"<b>Инсайты</b>\n{insights}" if insights else "",
+        (
+            "<b>Score</b>\n"
+            f"Novelty {scores.get('novelty', '-')}/5\n"
+            f"Technical depth {scores.get('technical_depth', '-')}/5\n"
+            f"Practical value {scores.get('practical_value', '-')}/5"
+        ),
+        html.escape(str(item.get("url", "")).strip()),
+        topics,
+    ]
+
+    return "\n\n".join(section for section in sections if section)
 
 
 def send_message(text: str) -> int:
@@ -81,6 +110,7 @@ def send_message(text: str) -> int:
     payload = urllib.parse.urlencode({
         "chat_id": chat_id,
         "text": text,
+        "parse_mode": "HTML",
         "disable_web_page_preview": "true",
     }).encode("utf-8")
 
