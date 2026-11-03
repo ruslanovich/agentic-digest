@@ -290,3 +290,4 @@
 {"id": "arxiv-2609-20754", "telegram_message_id": 298, "published_at": "2026-11-01T15:20:42.845476+00:00"}
 {"id": "aws-agentcore-runtime-v2-2026-09-18", "telegram_message_id": 299, "published_at": "2026-11-01T20:39:39.575443+00:00"}
 {"id": "unit42-agentcore-harness-credential-exfiltration-2026-09-18", "telegram_message_id": 300, "published_at": "2026-11-02T18:37:09.512162+00:00"}
+{"id": "openai-artifactory-cross-sample-communication-2026-09-16", "telegram_message_id": 301, "published_at": "2026-11-03T02:29:04.449161+00:00"}
